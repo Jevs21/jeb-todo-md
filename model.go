@@ -212,12 +212,9 @@ func (m model) View() string {
 		isCursor := i == m.cursor
 
 		if isCursor && m.mode == ModeEditing {
-			checkbox := "[ ]"
-			if item.Checked {
-				checkbox = "[x]"
-			}
-			line := fmt.Sprintf("  > - %s %s", checkbox, m.textInput.View())
-			b.WriteString(line)
+			width := len(fmt.Sprintf("%d", m.file.TodoCount()))
+			num := fmt.Sprintf("%*d  ", width, i+1)
+			b.WriteString(cursorStyle.Render(" > ") + priorityStyle.Render(num) + m.textInput.View())
 		} else {
 			b.WriteString(m.renderTodoLine(i, item, isCursor))
 		}
@@ -225,16 +222,16 @@ func (m model) View() string {
 
 		// Show create input after cursor item
 		if isCursor && m.mode == ModeCreating {
-			line := fmt.Sprintf("  > - [ ] %s", m.textInput.View())
-			b.WriteString(line)
+			width := len(fmt.Sprintf("%d", m.file.TodoCount()+1))
+			num := fmt.Sprintf("%*d  ", width, m.cursor+2)
+			b.WriteString(cursorStyle.Render(" > ") + priorityStyle.Render(num) + m.textInput.View())
 			b.WriteString("\n")
 		}
 	}
 
 	// If creating with no todos, show input
 	if m.file.TodoCount() == 0 && m.mode == ModeCreating {
-		line := fmt.Sprintf("  > - [ ] %s", m.textInput.View())
-		b.WriteString(line)
+		b.WriteString(cursorStyle.Render(" > ") + priorityStyle.Render("1  ") + m.textInput.View())
 		b.WriteString("\n")
 	}
 
@@ -250,26 +247,28 @@ func (m model) renderTodoLine(idx int, item TodoItem, isCursor bool) string {
 		cursor = " > "
 	}
 
-	checkbox := "[ ]"
-	if item.Checked {
-		checkbox = "[x]"
-	}
-
-	line := fmt.Sprintf("%s - %s %s", cursor, checkbox, item.Text)
+	width := len(fmt.Sprintf("%d", m.file.TodoCount()))
+	num := fmt.Sprintf("%*d  ", width, idx+1)
+	numStr := priorityStyle.Render(num)
 
 	if isCursor && m.pendingDelete {
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true).Render(line)
+		style := lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
+		return style.Render(cursor) + numStr + style.Render(item.Text)
 	}
 	if isCursor && m.mode == ModeRearrange {
-		return rearrangeStyle.Render(line)
+		return rearrangeStyle.Render(cursor) + numStr + rearrangeStyle.Render(item.Text)
 	}
 	if isCursor {
-		return cursorStyle.Render(line)
+		textStyle := cursorStyle
+		if item.Checked {
+			textStyle = textStyle.Strikethrough(true)
+		}
+		return textStyle.Render(cursor) + numStr + textStyle.Render(item.Text)
 	}
 	if item.Checked {
-		return checkedStyle.Render(line)
+		return cursor + numStr + checkedStyle.Render(item.Text)
 	}
-	return line
+	return cursor + numStr + item.Text
 }
 
 func (m model) renderHelp() string {

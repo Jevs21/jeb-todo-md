@@ -19,6 +19,9 @@ var (
 			Foreground(lipgloss.Color("214")).
 			Bold(true)
 
+	priorityStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("243"))
+
 	helpStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("241"))
 )
