@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/Jevs21/jeb-todo-md/internal/tui"
 )
 
 func main() {
@@ -19,15 +19,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	tf, err := ParseFile(filePath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading file: %v\n", err)
-		os.Exit(1)
-	}
-
-	m := initialModel(tf)
-	p := tea.NewProgram(m, tea.WithAltScreen())
-	if _, err := p.Run(); err != nil {
+	if err := tui.Run(filePath); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}

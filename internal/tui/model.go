@@ -1,4 +1,4 @@
-package main
+package tui
 
 import (
 	"fmt"
@@ -39,6 +39,21 @@ func initialModel(tf *TodoFile) model {
 		mode:      ModeNormal,
 		textInput: ti,
 	}
+}
+
+// Run parses the todo file at filePath and starts the TUI.
+func Run(filePath string) error {
+	tf, err := ParseFile(filePath)
+	if err != nil {
+		return fmt.Errorf("loading file: %w", err)
+	}
+
+	m := initialModel(tf)
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	if _, err := p.Run(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (m model) Init() tea.Cmd {

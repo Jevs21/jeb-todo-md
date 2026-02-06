@@ -1,4 +1,4 @@
-package main
+package tui
 
 import (
 	"os"
@@ -49,8 +49,8 @@ func ParseFile(path string) (*TodoFile, error) {
 	return tf, nil
 }
 
-// parseTodoLine extracts a TodoItem from a raw line.
-func parseTodoLine(line string) *TodoItem {
+// ParseTodoLine extracts a TodoItem from a raw line.
+func ParseTodoLine(line string) *TodoItem {
 	matches := todoRegex.FindStringSubmatch(line)
 	if matches == nil {
 		return nil
@@ -61,8 +61,8 @@ func parseTodoLine(line string) *TodoItem {
 	}
 }
 
-// formatTodoLine creates a raw markdown line from a TodoItem.
-func formatTodoLine(item TodoItem) string {
+// FormatTodoLine creates a raw markdown line from a TodoItem.
+func FormatTodoLine(item TodoItem) string {
 	check := " "
 	if item.Checked {
 		check = "x"
@@ -88,7 +88,7 @@ func (tf *TodoFile) TodoCount() int {
 // GetTodo returns the TodoItem at logical index.
 func (tf *TodoFile) GetTodo(todoIdx int) TodoItem {
 	line := tf.RawLines[tf.TodoIndices[todoIdx]]
-	item := parseTodoLine(line)
+	item := ParseTodoLine(line)
 	if item == nil {
 		return TodoItem{}
 	}
@@ -98,23 +98,23 @@ func (tf *TodoFile) GetTodo(todoIdx int) TodoItem {
 // SetTodoText updates the text of a todo at logical index.
 func (tf *TodoFile) SetTodoText(todoIdx int, text string) {
 	lineIdx := tf.TodoIndices[todoIdx]
-	item := parseTodoLine(tf.RawLines[lineIdx])
+	item := ParseTodoLine(tf.RawLines[lineIdx])
 	if item == nil {
 		return
 	}
 	item.Text = text
-	tf.RawLines[lineIdx] = formatTodoLine(*item)
+	tf.RawLines[lineIdx] = FormatTodoLine(*item)
 }
 
 // ToggleTodo flips the checked state of a todo.
 func (tf *TodoFile) ToggleTodo(todoIdx int) {
 	lineIdx := tf.TodoIndices[todoIdx]
-	item := parseTodoLine(tf.RawLines[lineIdx])
+	item := ParseTodoLine(tf.RawLines[lineIdx])
 	if item == nil {
 		return
 	}
 	item.Checked = !item.Checked
-	tf.RawLines[lineIdx] = formatTodoLine(*item)
+	tf.RawLines[lineIdx] = FormatTodoLine(*item)
 }
 
 // SwapTodos swaps two todo lines in RawLines by content.
@@ -135,7 +135,7 @@ func (tf *TodoFile) DeleteTodo(todoIdx int) {
 // InsertTodo inserts a new todo after the given logical index.
 // If todoIdx is -1 or there are no todos, appends at end of file.
 func (tf *TodoFile) InsertTodo(afterTodoIdx int, item TodoItem) {
-	newLine := formatTodoLine(item)
+	newLine := FormatTodoLine(item)
 
 	var insertAt int
 	if tf.TodoCount() == 0 || afterTodoIdx < 0 {
