@@ -1,10 +1,12 @@
-package main
+package tests
 
 import (
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Jevs21/jeb-todo-md/internal/tui"
 )
 
 const testMarkdown = `# Weekend Tasks
@@ -32,7 +34,7 @@ func writeTempFile(t *testing.T, content string) string {
 
 func TestParseFile_WithTitle(t *testing.T) {
 	path := writeTempFile(t, testMarkdown)
-	tf, err := ParseFile(path)
+	tf, err := tui.ParseFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +46,7 @@ func TestParseFile_WithTitle(t *testing.T) {
 func TestParseFile_NoTitle(t *testing.T) {
 	content := "- [ ] First task\n- [ ] Second task\n"
 	path := writeTempFile(t, content)
-	tf, err := ParseFile(path)
+	tf, err := tui.ParseFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +57,7 @@ func TestParseFile_NoTitle(t *testing.T) {
 
 func TestParseFile_TodoCount(t *testing.T) {
 	path := writeTempFile(t, testMarkdown)
-	tf, err := ParseFile(path)
+	tf, err := tui.ParseFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +68,7 @@ func TestParseFile_TodoCount(t *testing.T) {
 
 func TestParseFile_TodoContent(t *testing.T) {
 	path := writeTempFile(t, testMarkdown)
-	tf, err := ParseFile(path)
+	tf, err := tui.ParseFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +97,7 @@ func TestParseFile_TodoContent(t *testing.T) {
 
 func TestToggleTodo(t *testing.T) {
 	path := writeTempFile(t, testMarkdown)
-	tf, _ := ParseFile(path)
+	tf, _ := tui.ParseFile(path)
 
 	// Toggle unchecked -> checked
 	tf.ToggleTodo(1)
@@ -114,7 +116,7 @@ func TestToggleTodo(t *testing.T) {
 
 func TestSwapTodos(t *testing.T) {
 	path := writeTempFile(t, testMarkdown)
-	tf, _ := ParseFile(path)
+	tf, _ := tui.ParseFile(path)
 
 	tf.SwapTodos(1, 2)
 
@@ -130,7 +132,7 @@ func TestSwapTodos(t *testing.T) {
 
 func TestDeleteTodo(t *testing.T) {
 	path := writeTempFile(t, testMarkdown)
-	tf, _ := ParseFile(path)
+	tf, _ := tui.ParseFile(path)
 
 	tf.DeleteTodo(1) // Remove "Buy groceries"
 
@@ -145,9 +147,9 @@ func TestDeleteTodo(t *testing.T) {
 
 func TestInsertTodo(t *testing.T) {
 	path := writeTempFile(t, testMarkdown)
-	tf, _ := ParseFile(path)
+	tf, _ := tui.ParseFile(path)
 
-	tf.InsertTodo(1, TodoItem{Text: "New task", Checked: false})
+	tf.InsertTodo(1, tui.TodoItem{Text: "New task", Checked: false})
 
 	if tf.TodoCount() != 5 {
 		t.Errorf("expected 5 todos after insert, got %d", tf.TodoCount())
@@ -160,7 +162,7 @@ func TestInsertTodo(t *testing.T) {
 
 func TestSetTodoText(t *testing.T) {
 	path := writeTempFile(t, testMarkdown)
-	tf, _ := ParseFile(path)
+	tf, _ := tui.ParseFile(path)
 
 	tf.SetTodoText(0, "Scrub the kitchen")
 	item := tf.GetTodo(0)
@@ -175,7 +177,7 @@ func TestSetTodoText(t *testing.T) {
 
 func TestRoundTrip(t *testing.T) {
 	path := writeTempFile(t, testMarkdown)
-	tf, _ := ParseFile(path)
+	tf, _ := tui.ParseFile(path)
 	if err := tf.Save(); err != nil {
 		t.Fatal(err)
 	}
@@ -188,9 +190,9 @@ func TestRoundTrip(t *testing.T) {
 
 func TestInsertTodo_EmptyFile(t *testing.T) {
 	path := writeTempFile(t, "# My List\n")
-	tf, _ := ParseFile(path)
+	tf, _ := tui.ParseFile(path)
 
-	tf.InsertTodo(-1, TodoItem{Text: "First task", Checked: false})
+	tf.InsertTodo(-1, tui.TodoItem{Text: "First task", Checked: false})
 
 	if tf.TodoCount() != 1 {
 		t.Errorf("expected 1 todo, got %d", tf.TodoCount())
@@ -218,7 +220,7 @@ func TestParseTodoLine(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		item := parseTodoLine(tt.line)
+		item := tui.ParseTodoLine(tt.line)
 		if tt.isValid {
 			if item == nil {
 				t.Errorf("expected %q to be a valid todo", tt.line)
@@ -237,19 +239,19 @@ func TestParseTodoLine(t *testing.T) {
 }
 
 func TestFormatTodoLine(t *testing.T) {
-	item := TodoItem{Text: "Buy milk", Checked: false}
-	if got := formatTodoLine(item); got != "- [ ] Buy milk" {
+	item := tui.TodoItem{Text: "Buy milk", Checked: false}
+	if got := tui.FormatTodoLine(item); got != "- [ ] Buy milk" {
 		t.Errorf("expected '- [ ] Buy milk', got %q", got)
 	}
 	item.Checked = true
-	if got := formatTodoLine(item); got != "- [x] Buy milk" {
+	if got := tui.FormatTodoLine(item); got != "- [x] Buy milk" {
 		t.Errorf("expected '- [x] Buy milk', got %q", got)
 	}
 }
 
 func TestSave_PreservesNonTodoLines(t *testing.T) {
 	path := writeTempFile(t, testMarkdown)
-	tf, _ := ParseFile(path)
+	tf, _ := tui.ParseFile(path)
 
 	// Modify a todo
 	tf.ToggleTodo(1)
