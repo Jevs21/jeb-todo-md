@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -43,12 +44,7 @@ func ParseFile(path string) (*TodoFile, error) {
 		}
 	}
 
-	// Build todo indices
-	for i, line := range lines {
-		if todoRegex.MatchString(line) {
-			tf.TodoIndices = append(tf.TodoIndices, i)
-		}
-	}
+	tf.rebuildIndices()
 
 	return tf, nil
 }
@@ -72,6 +68,16 @@ func formatTodoLine(item TodoItem) string {
 		check = "x"
 	}
 	return "- [" + check + "] " + item.Text
+}
+
+// rebuildIndices rescans RawLines to rebuild TodoIndices.
+func (tf *TodoFile) rebuildIndices() {
+	tf.TodoIndices = nil
+	for i, line := range tf.RawLines {
+		if todoRegex.MatchString(line) {
+			tf.TodoIndices = append(tf.TodoIndices, i)
+		}
+	}
 }
 
 // TodoCount returns the number of todos.
@@ -122,16 +128,8 @@ func (tf *TodoFile) SwapTodos(a, b int) {
 func (tf *TodoFile) DeleteTodo(todoIdx int) {
 	lineIdx := tf.TodoIndices[todoIdx]
 
-	// Remove the line from RawLines
 	tf.RawLines = append(tf.RawLines[:lineIdx], tf.RawLines[lineIdx+1:]...)
-
-	// Rebuild todo indices
-	tf.TodoIndices = nil
-	for i, line := range tf.RawLines {
-		if todoRegex.MatchString(line) {
-			tf.TodoIndices = append(tf.TodoIndices, i)
-		}
-	}
+	tf.rebuildIndices()
 }
 
 // InsertTodo inserts a new todo after the given logical index.
@@ -150,18 +148,8 @@ func (tf *TodoFile) InsertTodo(afterTodoIdx int, item TodoItem) {
 		insertAt = tf.TodoIndices[afterTodoIdx] + 1
 	}
 
-	// Insert line at position
-	tf.RawLines = append(tf.RawLines, "")
-	copy(tf.RawLines[insertAt+1:], tf.RawLines[insertAt:])
-	tf.RawLines[insertAt] = newLine
-
-	// Rebuild todo indices
-	tf.TodoIndices = nil
-	for i, line := range tf.RawLines {
-		if todoRegex.MatchString(line) {
-			tf.TodoIndices = append(tf.TodoIndices, i)
-		}
-	}
+	tf.RawLines = slices.Insert(tf.RawLines, insertAt, newLine)
+	tf.rebuildIndices()
 }
 
 // Save writes RawLines back to the file atomically.

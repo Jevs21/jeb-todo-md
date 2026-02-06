@@ -6,7 +6,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // Mode represents the current TUI mode.
@@ -72,6 +71,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// startTextInput sets up the text input with a value and focuses it.
+func (m model) startTextInput(value string) (model, tea.Cmd) {
+	m.textInput.SetValue(value)
+	if value != "" {
+		m.textInput.CursorEnd()
+	}
+	cmd := m.textInput.Focus()
+	return m, cmd
+}
+
 func (m model) updateNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.pendingDelete {
 		if msg.String() == "d" {
@@ -106,16 +115,11 @@ func (m model) updateNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.file.TodoCount() > 0 {
 			m.mode = ModeEditing
 			item := m.file.GetTodo(m.cursor)
-			m.textInput.SetValue(item.Text)
-			m.textInput.CursorEnd()
-			m.textInput.Focus()
-			return m, m.textInput.Focus()
+			return m.startTextInput(item.Text)
 		}
 	case "c":
 		m.mode = ModeCreating
-		m.textInput.SetValue("")
-		m.textInput.Focus()
-		return m, m.textInput.Focus()
+		return m.startTextInput("")
 	case "r":
 		if m.file.TodoCount() > 0 {
 			m.mode = ModeRearrange
@@ -212,26 +216,20 @@ func (m model) View() string {
 		isCursor := i == m.cursor
 
 		if isCursor && m.mode == ModeEditing {
-			width := len(fmt.Sprintf("%d", m.file.TodoCount()))
-			num := fmt.Sprintf("%*d  ", width, i+1)
-			b.WriteString(cursorStyle.Render(" > ") + priorityStyle.Render(num) + m.textInput.View())
+			b.WriteString(m.renderInputLine(i+1, m.file.TodoCount()))
 		} else {
 			b.WriteString(m.renderTodoLine(i, item, isCursor))
 		}
 		b.WriteString("\n")
 
-		// Show create input after cursor item
 		if isCursor && m.mode == ModeCreating {
-			width := len(fmt.Sprintf("%d", m.file.TodoCount()+1))
-			num := fmt.Sprintf("%*d  ", width, m.cursor+2)
-			b.WriteString(cursorStyle.Render(" > ") + priorityStyle.Render(num) + m.textInput.View())
+			b.WriteString(m.renderInputLine(m.cursor+2, m.file.TodoCount()+1))
 			b.WriteString("\n")
 		}
 	}
 
-	// If creating with no todos, show input
 	if m.file.TodoCount() == 0 && m.mode == ModeCreating {
-		b.WriteString(cursorStyle.Render(" > ") + priorityStyle.Render("1  ") + m.textInput.View())
+		b.WriteString(m.renderInputLine(1, 1))
 		b.WriteString("\n")
 	}
 
@@ -247,13 +245,10 @@ func (m model) renderTodoLine(idx int, item TodoItem, isCursor bool) string {
 		cursor = " > "
 	}
 
-	width := len(fmt.Sprintf("%d", m.file.TodoCount()))
-	num := fmt.Sprintf("%*d  ", width, idx+1)
-	numStr := priorityStyle.Render(num)
+	numStr := priorityStyle.Render(m.fmtLineNum(idx+1, m.file.TodoCount()))
 
 	if isCursor && m.pendingDelete {
-		style := lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
-		return style.Render(cursor) + numStr + style.Render(item.Text)
+		return deleteStyle.Render(cursor) + numStr + deleteStyle.Render(item.Text)
 	}
 	if isCursor && m.mode == ModeRearrange {
 		return rearrangeStyle.Render(cursor) + numStr + rearrangeStyle.Render(item.Text)
@@ -269,6 +264,19 @@ func (m model) renderTodoLine(idx int, item TodoItem, isCursor bool) string {
 		return cursor + numStr + checkedStyle.Render(item.Text)
 	}
 	return cursor + numStr + item.Text
+}
+
+// fmtLineNum formats a 1-based line number right-aligned to the width
+// needed for totalItems, followed by two spaces.
+func (m model) fmtLineNum(oneBasedIdx, totalItems int) string {
+	width := len(fmt.Sprintf("%d", totalItems))
+	return fmt.Sprintf("%*d  ", width, oneBasedIdx)
+}
+
+// renderInputLine renders the text input row with cursor marker and line number.
+func (m model) renderInputLine(oneBasedIdx, totalItems int) string {
+	num := m.fmtLineNum(oneBasedIdx, totalItems)
+	return cursorStyle.Render(" > ") + priorityStyle.Render(num) + m.textInput.View()
 }
 
 func (m model) renderHelp() string {
