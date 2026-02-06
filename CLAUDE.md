@@ -11,13 +11,14 @@ A minimal TUI application for editing a single markdown todo file.
 
 ## Project Structure
 
-All files are in the `main` package (no sub-packages).
-
-- `main.go` - Entry point: reads `JEB_TODO_FILE` env var, loads file, starts TUI
-- `model.go` - Bubbletea Model: struct, Init, Update (state machine), View
-- `todofile.go` - File I/O: markdown parsing, atomic save, data types, all mutations
-- `todofile_test.go` - Unit tests for parsing and mutations
-- `styles.go` - Lipgloss style constants
+```
+cmd/jeb-todo-md/main.go    # Thin entry point (package main)
+internal/tui/model.go       # Bubbletea model & TUI logic (package tui)
+internal/tui/styles.go      # Lipgloss style constants (package tui)
+internal/tui/todofile.go    # File I/O, parsing, data types (package tui)
+tests/todofile_test.go      # Unit tests (package tests)
+.github/workflows/test.yml  # CI: test on push
+```
 
 ## Architecture
 
@@ -49,7 +50,7 @@ Parsed with regex `^\s*- \[([ xX])\] (.*)$`. First line checked for `# ` prefix 
 
 ## Commands
 
-- `go build -o jeb-todo-md .` - Build
+- `go build -o jeb-todo-md ./cmd/jeb-todo-md` - Build
 - `go test ./...` - Run tests
 - `JEB_TODO_FILE=/path/to/todo.md ./jeb-todo-md` - Run
 
