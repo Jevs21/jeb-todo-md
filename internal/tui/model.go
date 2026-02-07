@@ -107,7 +107,7 @@ func (m model) updateNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg.String() {
-	case "q":
+	case "q", "esc":
 		return m, tea.Quit
 	case "j", "down":
 		if m.cursor < m.file.TodoCount()-1 {
@@ -117,7 +117,7 @@ func (m model) updateNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.cursor > 0 {
 			m.cursor--
 		}
-	case " ", "x":
+	case " ", "x", "enter":
 		if m.file.TodoCount() > 0 {
 			m.file.ToggleTodo(m.cursor)
 			_ = m.file.Save()
@@ -293,7 +293,7 @@ func (m model) renderHelp() string {
 		if m.pendingDelete {
 			return helpStyle.Render("  press d again to delete  |  any other key to cancel")
 		}
-		return helpStyle.Render("  j/k: navigate  space/x: toggle  e: edit  c: create  r: rearrange  d: delete  q: quit")
+		return helpStyle.Render("  j/k: navigate  space/x/enter: toggle  e: edit  c: create  r: rearrange  d: delete  esc/q: quit")
 	case ModeEditing:
 		return helpStyle.Render("  enter: save  esc: cancel")
 	case ModeCreating:
