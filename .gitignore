@@ -1,2 +1,3 @@
 /jeb-todo-md
 *.tmp
+dist/
