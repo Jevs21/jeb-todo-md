@@ -2,12 +2,21 @@ package tui
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
+
+var headerIcons = []string{
+	"◆", "◇", "●", "○", "■", "□", "▲", "△",
+	"★", "☆", "✦", "※", "›", "»", "→", "•", "‣", "⌘",
+	"⌬", "⌭", "⏚", "⎈", "⌖", "⌑", "⏏", "⏍", "☊",
+	"⚀", "⚁", "⚂", "⚃", "⚄", "⚅",
+	"☽", "☿", "♃", "♄", "♅", "⚶", "⚷",
+}
 
 // Mode represents the current TUI mode.
 type Mode int
@@ -26,6 +35,7 @@ type model struct {
 	textInput     textinput.Model
 	pendingDelete bool
 	openedAt      time.Time
+	headerIcon    string
 }
 
 func initialModel(tf *TodoFile) model {
@@ -34,11 +44,12 @@ func initialModel(tf *TodoFile) model {
 	ti.Width = 80
 
 	return model{
-		file:      tf,
-		cursor:    0,
-		mode:      ModeNormal,
-		textInput: ti,
-		openedAt:  time.Now(),
+		file:       tf,
+		cursor:     0,
+		mode:       ModeNormal,
+		textInput:  ti,
+		openedAt:   time.Now(),
+		headerIcon: headerIcons[rand.IntN(len(headerIcons))],
 	}
 }
 
@@ -210,7 +221,7 @@ func (m model) View() string {
 	var b strings.Builder
 
 	// Header
-	timestamp := m.openedAt.Format("Jan 2 @ 3:04 PM")
+	timestamp := m.headerIcon + " " + m.openedAt.Format("Jan 2 @ 3:04 PM")
 	b.WriteString(titleStyle.Render(timestamp))
 	b.WriteString("\n")
 
