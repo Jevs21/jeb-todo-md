@@ -18,7 +18,6 @@ type TodoItem struct {
 // TodoFile holds the entire file state for round-trip editing.
 type TodoFile struct {
 	Path        string
-	Title       string
 	RawLines    []string
 	TodoIndices []int
 }
@@ -35,15 +34,6 @@ func ParseFile(path string) (*TodoFile, error) {
 	lines := strings.Split(content, "\n")
 
 	tf := &TodoFile{Path: path, RawLines: lines}
-
-	// Check first non-empty line for h1
-	if len(lines) > 0 {
-		trimmed := strings.TrimSpace(lines[0])
-		if strings.HasPrefix(trimmed, "# ") {
-			tf.Title = strings.TrimPrefix(trimmed, "# ")
-		}
-	}
-
 	tf.rebuildIndices()
 
 	return tf, nil

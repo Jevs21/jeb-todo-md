@@ -32,29 +32,6 @@ func writeTempFile(t *testing.T, content string) string {
 	return path
 }
 
-func TestParseFile_WithTitle(t *testing.T) {
-	path := writeTempFile(t, testMarkdown)
-	tf, err := tui.ParseFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if tf.Title != "Weekend Tasks" {
-		t.Errorf("expected title 'Weekend Tasks', got %q", tf.Title)
-	}
-}
-
-func TestParseFile_NoTitle(t *testing.T) {
-	content := "- [ ] First task\n- [ ] Second task\n"
-	path := writeTempFile(t, content)
-	tf, err := tui.ParseFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if tf.Title != "" {
-		t.Errorf("expected empty title, got %q", tf.Title)
-	}
-}
-
 func TestParseFile_TodoCount(t *testing.T) {
 	path := writeTempFile(t, testMarkdown)
 	tf, err := tui.ParseFile(path)

@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -24,8 +25,7 @@ type model struct {
 	mode          Mode
 	textInput     textinput.Model
 	pendingDelete bool
-	windowWidth   int
-	windowHeight  int
+	openedAt      time.Time
 }
 
 func initialModel(tf *TodoFile) model {
@@ -38,6 +38,7 @@ func initialModel(tf *TodoFile) model {
 		cursor:    0,
 		mode:      ModeNormal,
 		textInput: ti,
+		openedAt:  time.Now(),
 	}
 }
 
@@ -62,11 +63,6 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.windowWidth = msg.Width
-		m.windowHeight = msg.Height
-		return m, nil
-
 	case tea.KeyMsg:
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
@@ -213,12 +209,9 @@ func (m model) updateRearrange(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	var b strings.Builder
 
-	// Title
-	title := m.file.Title
-	if title == "" {
-		title = "Todo"
-	}
-	b.WriteString(titleStyle.Render(title))
+	// Header
+	timestamp := m.openedAt.Format("Jan 2 @ 3:04 PM")
+	b.WriteString(titleStyle.Render(timestamp))
 	b.WriteString("\n")
 
 	if m.file.TodoCount() == 0 && m.mode != ModeCreating {
