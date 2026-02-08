@@ -33,14 +33,31 @@ This works well with a synced Obsidian vault — point `JEB_TODO_FILE` at a mark
 
 ## Install
 
+### Homebrew
+
 ```bash
-# clone and build
+brew install Jevs21/tap/jeb-todo-md
+```
+
+Set your todo file path:
+
+```bash
+echo 'export JEB_TODO_FILE="$HOME/todo.md"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### From Source
+
+```bash
 git clone https://github.com/Jevs21/jeb-todo-md.git
 cd jeb-todo-md
-make build
+go build -o jeb-todo-md ./cmd/jeb-todo-md
+```
 
-# set your todo file and add an alias
+Set your todo file path and add the binary to your shell:
+
+```bash
 echo 'export JEB_TODO_FILE="$HOME/todo.md"' >> ~/.bashrc
-echo 'alias todo="$HOME/path/to/jeb-todo-md"' >> ~/.bashrc
+echo 'alias todo="/path/to/jeb-todo-md"' >> ~/.bashrc
 source ~/.bashrc
 ```
