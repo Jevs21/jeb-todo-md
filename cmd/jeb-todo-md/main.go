@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -15,14 +16,37 @@ var (
 )
 
 func main() {
-	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+	var filePath string
+	var showVersion bool
+
+	flag.StringVar(&filePath, "file", "", "Path to markdown todo file (overrides JEB_TODO_FILE)")
+	flag.StringVar(&filePath, "f", "", "Path to markdown todo file (shorthand)")
+	flag.BoolVar(&showVersion, "version", false, "Show version information")
+	flag.BoolVar(&showVersion, "v", false, "Show version information (shorthand)")
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS]\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "A minimal TUI for editing markdown todo files.\n\n")
+		fmt.Fprintf(os.Stderr, "Options:\n")
+		flag.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "\nIf -f/--file is not provided, reads from JEB_TODO_FILE environment variable.\n")
+	}
+
+	flag.Parse()
+
+	if showVersion {
 		fmt.Printf("jeb-todo-md %s (commit: %s, built: %s)\n", version, commit, date)
 		os.Exit(0)
 	}
 
-	filePath := os.Getenv("JEB_TODO_FILE")
+	// Precedence: --file flag > JEB_TODO_FILE env var
 	if filePath == "" {
-		fmt.Fprintln(os.Stderr, "Error: JEB_TODO_FILE environment variable not set")
+		filePath = os.Getenv("JEB_TODO_FILE")
+	}
+
+	if filePath == "" {
+		fmt.Fprintln(os.Stderr, "Error: no todo file specified")
+		fmt.Fprintln(os.Stderr, "  Set JEB_TODO_FILE environment variable, or use -f/--file flag")
 		os.Exit(1)
 	}
 

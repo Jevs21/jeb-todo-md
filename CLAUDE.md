@@ -52,7 +52,18 @@ Parsed with regex `^\s*- \[([ xX])\] (.*)$`. First line checked for `# ` prefix 
 
 - `go build -o jeb-todo-md ./cmd/jeb-todo-md` - Build
 - `go test ./...` - Run tests
-- `JEB_TODO_FILE=/path/to/todo.md ./jeb-todo-md` - Run
+- `./jeb-todo-md -f /path/to/todo.md` - Run with file flag
+- `JEB_TODO_FILE=/path/to/todo.md ./jeb-todo-md` - Run with env var
+
+## CLI Flags
+
+| Flag | Description |
+|------|-------------|
+| `-f`, `--file` | Path to markdown todo file (overrides `JEB_TODO_FILE`) |
+| `-v`, `--version` | Show version information |
+| `-h`, `--help` | Show help text |
+
+**Precedence**: `-f`/`--file` flag > `JEB_TODO_FILE` environment variable. If neither is set, the program exits with an error.
 
 ## Keybindings
 

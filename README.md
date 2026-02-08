@@ -13,12 +13,20 @@ A minimal TUI for editing a single markdown todo file.
 
 ## Usage
 
-Point `JEB_TODO_FILE` at any markdown file containing todo items and run the binary:
+Pass a markdown file with the `-f` flag:
+
+```bash
+jeb-todo-md -f ~/todo.md
+```
+
+Or set the `JEB_TODO_FILE` environment variable:
 
 ```bash
 export JEB_TODO_FILE="$HOME/todo.md"
-./jeb-todo-md
+jeb-todo-md
 ```
+
+If both are provided, the `-f` flag takes precedence over the environment variable.
 
 The file should use standard markdown checkbox syntax:
 
@@ -29,7 +37,19 @@ The file should use standard markdown checkbox syntax:
 
 Any other content in the file (headings, blank lines, notes) is preserved as-is.
 
-This works well with a synced Obsidian vault — point `JEB_TODO_FILE` at a markdown file in your vault and edits stay in sync across devices.
+This works well with a synced Obsidian vault — point `-f` at a markdown file in your vault and edits stay in sync across devices:
+
+```bash
+jeb-todo-md -f ~/ObsidianVault/todo.md
+```
+
+## CLI Options
+
+| Flag | Description |
+|------|-------------|
+| `-f`, `--file` | Path to markdown todo file (overrides `JEB_TODO_FILE`) |
+| `-v`, `--version` | Show version information |
+| `-h`, `--help` | Show help text |
 
 ## Install
 
@@ -39,10 +59,16 @@ This works well with a synced Obsidian vault — point `JEB_TODO_FILE` at a mark
 brew install Jevs21/tap/jeb-todo-md
 ```
 
-Set your todo file path:
+Then run directly with `-f`:
 
 ```bash
-echo 'export JEB_TODO_FILE="$HOME/todo.md"' >> ~/.bashrc
+jeb-todo-md -f ~/todo.md
+```
+
+Or set up an alias:
+
+```bash
+echo 'alias todo="jeb-todo-md -f ~/todo.md"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
@@ -54,10 +80,15 @@ cd jeb-todo-md
 go build -o jeb-todo-md ./cmd/jeb-todo-md
 ```
 
-Set your todo file path and add the binary to your shell:
+Then run directly with `-f`:
 
 ```bash
-echo 'export JEB_TODO_FILE="$HOME/todo.md"' >> ~/.bashrc
-echo 'alias todo="/path/to/jeb-todo-md"' >> ~/.bashrc
+./jeb-todo-md -f ~/todo.md
+```
+
+Or set up an alias:
+
+```bash
+echo 'alias todo="/path/to/jeb-todo-md -f ~/todo.md"' >> ~/.bashrc
 source ~/.bashrc
 ```
