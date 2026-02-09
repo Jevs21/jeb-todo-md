@@ -18,6 +18,7 @@ internal/tui/styles.go      # Lipgloss style constants (package tui)
 internal/tui/todofile.go    # File I/O, parsing, data types (package tui)
 tests/todofile_test.go      # Unit tests (package tests)
 .github/workflows/test.yml  # CI: test on push
+CHANGELOG.md                # Feature history by date, grouped by release
 ```
 
 ## Architecture
@@ -99,3 +100,13 @@ Todo items can link to other todo files using the `todo:<filepath>` syntax. This
 - **Max depth**: Navigation stack is capped at 50 levels.
 - **Visual**: Linked items appear with blue underline styling. A breadcrumb showing the current filename appears when navigated into a linked file.
 - **Errors**: If a linked file doesn't exist or links to itself, an error message appears inline and is cleared on the next keypress.
+
+## Changelog
+
+`CHANGELOG.md` must be kept up to date. When a PR adds, removes, or changes a feature, add a single-line entry at the top of the changelog in the format:
+
+```
+- YYYY-MM-DD - Description of change
+```
+
+When a new version is released (git tag), group all entries since the last release under a `## vX.Y.Z (YYYY-MM-DD)` heading.
