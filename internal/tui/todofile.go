@@ -2,6 +2,7 @@ package tui
 
 import (
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -13,6 +14,30 @@ var todoRegex = regexp.MustCompile(`^(\s*- \[)([ xX])(\] )(.*)$`)
 type TodoItem struct {
 	Text    string
 	Checked bool
+}
+
+// IsLinkedTodo returns true if the todo text starts with "todo:" prefix.
+func (item TodoItem) IsLinkedTodo() bool {
+	return strings.HasPrefix(item.Text, "todo:")
+}
+
+// LinkedPath returns the file path portion of a linked todo, trimmed of whitespace.
+// Returns empty string if the item is not a link or the path is empty.
+func (item TodoItem) LinkedPath() string {
+	if !item.IsLinkedTodo() {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(item.Text, "todo:"))
+}
+
+// ResolveLinkedPath resolves a linked file path relative to the current file's directory.
+// If linkedPath is absolute, it is returned cleaned as-is.
+// Otherwise, it is joined with the directory of currentFilePath and cleaned.
+func ResolveLinkedPath(currentFilePath, linkedPath string) string {
+	if filepath.IsAbs(linkedPath) {
+		return filepath.Clean(linkedPath)
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(currentFilePath), linkedPath))
 }
 
 // TodoFile holds the entire file state for round-trip editing.

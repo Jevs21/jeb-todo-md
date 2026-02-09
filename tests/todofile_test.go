@@ -226,6 +226,126 @@ func TestFormatTodoLine(t *testing.T) {
 	}
 }
 
+func TestIsLinkedTodo(t *testing.T) {
+	tests := []struct {
+		text     string
+		expected bool
+	}{
+		{"todo:/path/to/file.md", true},
+		{"todo:work.md", true},
+		{"todo: spaced.md", true},
+		{"todo:", true},
+		{"Regular item", false},
+		{"TODO:uppercase", false},
+		{"not a todo:link", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		item := tui.TodoItem{Text: tt.text}
+		if got := item.IsLinkedTodo(); got != tt.expected {
+			t.Errorf("IsLinkedTodo(%q) = %v, want %v", tt.text, got, tt.expected)
+		}
+	}
+}
+
+func TestLinkedPath(t *testing.T) {
+	tests := []struct {
+		text     string
+		expected string
+	}{
+		{"todo:/path/to/file.md", "/path/to/file.md"},
+		{"todo:work.md", "work.md"},
+		{"todo: spaced.md", "spaced.md"},
+		{"todo:  extra-spaces.md  ", "extra-spaces.md"},
+		{"todo:", ""},
+		{"todo:   ", ""},
+		{"Regular item", ""},
+		{"", ""},
+	}
+
+	for _, tt := range tests {
+		item := tui.TodoItem{Text: tt.text}
+		if got := item.LinkedPath(); got != tt.expected {
+			t.Errorf("LinkedPath(%q) = %q, want %q", tt.text, got, tt.expected)
+		}
+	}
+}
+
+func TestResolveLinkedPath(t *testing.T) {
+	tests := []struct {
+		currentFile string
+		linkedPath  string
+		expected    string
+	}{
+		// Absolute paths pass through cleaned
+		{"/home/user/todos/main.md", "/absolute/path.md", "/absolute/path.md"},
+		{"/home/user/todos/main.md", "/absolute/../clean.md", "/clean.md"},
+		// Relative paths join with current file's directory
+		{"/home/user/todos/main.md", "work.md", "/home/user/todos/work.md"},
+		{"/home/user/todos/main.md", "sub/nested.md", "/home/user/todos/sub/nested.md"},
+		{"/home/user/todos/main.md", "../parent.md", "/home/user/parent.md"},
+		{"/home/user/todos/main.md", "./same-dir.md", "/home/user/todos/same-dir.md"},
+	}
+
+	for _, tt := range tests {
+		got := tui.ResolveLinkedPath(tt.currentFile, tt.linkedPath)
+		if got != tt.expected {
+			t.Errorf("ResolveLinkedPath(%q, %q) = %q, want %q", tt.currentFile, tt.linkedPath, got, tt.expected)
+		}
+	}
+}
+
+func TestLinkedTodoRoundTrip(t *testing.T) {
+	content := `# Project Tasks
+
+- [ ] todo:work.md
+- [x] todo:/absolute/done.md
+- [ ] Regular task
+`
+	path := writeTempFile(t, content)
+	todoFile, err := tui.ParseFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if todoFile.TodoCount() != 3 {
+		t.Fatalf("expected 3 todos, got %d", todoFile.TodoCount())
+	}
+
+	// Verify linked items are parsed correctly
+	firstItem := todoFile.GetTodo(0)
+	if !firstItem.IsLinkedTodo() {
+		t.Error("expected todo[0] to be a linked todo")
+	}
+	if firstItem.LinkedPath() != "work.md" {
+		t.Errorf("expected linked path 'work.md', got %q", firstItem.LinkedPath())
+	}
+
+	secondItem := todoFile.GetTodo(1)
+	if !secondItem.IsLinkedTodo() {
+		t.Error("expected todo[1] to be a linked todo")
+	}
+	if !secondItem.Checked {
+		t.Error("expected todo[1] to be checked")
+	}
+
+	thirdItem := todoFile.GetTodo(2)
+	if thirdItem.IsLinkedTodo() {
+		t.Error("expected todo[2] to NOT be a linked todo")
+	}
+
+	// Save and verify round-trip
+	if err := todoFile.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	savedData, _ := os.ReadFile(path)
+	if string(savedData) != content {
+		t.Errorf("round trip mismatch.\nExpected:\n%s\nGot:\n%s", content, string(savedData))
+	}
+}
+
 func TestSave_PreservesNonTodoLines(t *testing.T) {
 	path := writeTempFile(t, testMarkdown)
 	tf, _ := tui.ParseFile(path)

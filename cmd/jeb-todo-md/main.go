@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/Jevs21/jeb-todo-md/internal/tui"
 )
@@ -18,11 +19,13 @@ var (
 func main() {
 	var filePath string
 	var showVersion bool
+	var returnPaths string
 
 	flag.StringVar(&filePath, "file", "", "Path to markdown todo file (overrides JEB_TODO_FILE)")
 	flag.StringVar(&filePath, "f", "", "Path to markdown todo file (shorthand)")
 	flag.BoolVar(&showVersion, "version", false, "Show version information")
 	flag.BoolVar(&showVersion, "v", false, "Show version information (shorthand)")
+	flag.StringVar(&returnPaths, "return", "", "Comma-separated file paths for back-navigation stack")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS]\n\n", os.Args[0])
@@ -55,7 +58,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := tui.Run(filePath); err != nil {
+	// Parse return stack paths
+	var returnStack []string
+	if returnPaths != "" {
+		for _, returnPath := range strings.Split(returnPaths, ",") {
+			trimmedPath := strings.TrimSpace(returnPath)
+			if trimmedPath == "" {
+				continue
+			}
+			if _, err := os.Stat(trimmedPath); os.IsNotExist(err) {
+				fmt.Fprintf(os.Stderr, "Warning: return path not found: %s\n", trimmedPath)
+				continue
+			}
+			returnStack = append(returnStack, trimmedPath)
+		}
+	}
+
+	if err := tui.Run(filePath, returnStack); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
