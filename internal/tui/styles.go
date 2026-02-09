@@ -28,4 +28,11 @@ var (
 	deleteStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("196")).
 			Bold(true)
+
+	linkStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("33")).
+			Underline(true)
+
+	errorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("196"))
 )

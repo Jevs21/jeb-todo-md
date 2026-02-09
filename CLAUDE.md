@@ -1,6 +1,6 @@
 # jeb-todo-md
 
-A minimal TUI application for editing a single markdown todo file.
+A minimal TUI application for editing markdown todo files with linked file navigation.
 
 ## Tech Stack
 
@@ -44,9 +44,13 @@ Delete uses a `pendingDelete` flag in Normal mode (press d twice to confirm).
 
 - [ ] Unchecked todo
 - [x] Checked todo
+- [ ] todo:work/tasks.md
+- [ ] todo:/absolute/path/to/file.md
 ```
 
 Parsed with regex `^\s*- \[([ xX])\] (.*)$`. First line checked for `# ` prefix for title. All other lines are preserved but ignored in the TUI.
+
+Todo items with `todo:<filepath>` text are linked todos. `space`/`enter` navigates into the linked file; `x` still toggles the checkbox. Relative paths resolve from the current file's directory. Linked items render with blue underline styling.
 
 ## Commands
 
@@ -61,6 +65,7 @@ Parsed with regex `^\s*- \[([ xX])\] (.*)$`. First line checked for `# ` prefix 
 |------|-------------|
 | `-f`, `--file` | Path to markdown todo file (overrides `JEB_TODO_FILE`) |
 | `-v`, `--version` | Show version information |
+| `--return` | Comma-separated file paths for back-navigation stack |
 | `-h`, `--help` | Show help text |
 
 **Precedence**: `-f`/`--file` flag > `JEB_TODO_FILE` environment variable. If neither is set, the program exits with an error.
@@ -70,14 +75,27 @@ Parsed with regex `^\s*- \[([ xX])\] (.*)$`. First line checked for `# ` prefix 
 | Key | Mode | Action |
 |-----|------|--------|
 | j/k | Normal | Navigate up/down |
-| space/x | Normal | Toggle checkbox |
+| space/enter | Normal | Toggle checkbox, or navigate into linked todo |
+| x | Normal | Toggle checkbox (always toggles, even on linked items) |
 | e | Normal | Edit current item |
 | c | Normal | Create new item below cursor |
 | r | Normal | Enter rearrange mode |
 | d, d | Normal | Delete (press twice to confirm) |
-| q | Normal | Quit |
+| q/esc | Normal | Quit (or go back if navigated into a linked file) |
 | j/k | Rearrange | Swap item with neighbor |
 | r/esc | Rearrange | Exit rearrange mode |
 | enter | Edit/Create | Commit change |
 | esc | Edit/Create | Cancel |
 | ctrl+c | Any | Force quit |
+
+## Linked Files
+
+Todo items can link to other todo files using the `todo:<filepath>` syntax. This enables organizing todos across multiple files (e.g., work vs personal).
+
+- **Navigation**: Press `space` or `enter` on a linked item to open the linked file. Press `q` or `esc` to go back.
+- **Toggle**: Press `x` to toggle a linked item's checkbox without navigating.
+- **Path resolution**: Relative paths resolve from the current file's directory. Absolute paths are used as-is.
+- **Stack-based**: Navigation uses an internal stack, so you can drill multiple levels deep and return to each previous file with cursor position preserved.
+- **Max depth**: Navigation stack is capped at 50 levels.
+- **Visual**: Linked items appear with blue underline styling. A breadcrumb showing the current filename appears when navigated into a linked file.
+- **Errors**: If a linked file doesn't exist or links to itself, an error message appears inline and is cleared on the next keypress.

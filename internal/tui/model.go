@@ -3,12 +3,16 @@ package tui
 import (
 	"fmt"
 	"math/rand/v2"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
+
+const maxNavStackDepth = 50
 
 var headerIcons = []string{
 	"◆", "◇", "●", "○", "■", "□", "▲", "△",
@@ -28,6 +32,12 @@ const (
 	ModeRearrange
 )
 
+// NavigationEntry stores position information for back-navigation.
+type NavigationEntry struct {
+	FilePath       string
+	CursorPosition int
+}
+
 type model struct {
 	file          *TodoFile
 	cursor        int
@@ -36,31 +46,58 @@ type model struct {
 	pendingDelete bool
 	openedAt      time.Time
 	headerIcon    string
+	navStack      []NavigationEntry
+	statusMessage string
 }
 
-func initialModel(tf *TodoFile) model {
-	ti := textinput.New()
-	ti.CharLimit = 500
-	ti.Width = 80
+// switchFileMsg is returned by loadFileCmd after attempting to parse a file.
+type switchFileMsg struct {
+	newFile       *TodoFile
+	restoreCursor int // -1 = start at 0 (forward nav), >= 0 = restore (back nav)
+	err           error
+}
+
+// loadFileCmd returns a tea.Cmd that parses a file and sends a switchFileMsg.
+func loadFileCmd(path string, restoreCursor int) tea.Cmd {
+	return func() tea.Msg {
+		todoFile, err := ParseFile(path)
+		return switchFileMsg{newFile: todoFile, restoreCursor: restoreCursor, err: err}
+	}
+}
+
+func initialModel(todoFile *TodoFile, navigationStack []NavigationEntry) model {
+	textInput := textinput.New()
+	textInput.CharLimit = 500
+	textInput.Width = 80
 
 	return model{
-		file:       tf,
+		file:       todoFile,
 		cursor:     0,
 		mode:       ModeNormal,
-		textInput:  ti,
+		textInput:  textInput,
 		openedAt:   time.Now(),
 		headerIcon: headerIcons[rand.IntN(len(headerIcons))],
+		navStack:   navigationStack,
 	}
 }
 
 // Run parses the todo file at filePath and starts the TUI.
-func Run(filePath string) error {
-	tf, err := ParseFile(filePath)
+// returnStack provides file paths for back-navigation (each starts at cursor 0).
+func Run(filePath string, returnStack []string) error {
+	todoFile, err := ParseFile(filePath)
 	if err != nil {
 		return fmt.Errorf("loading file: %w", err)
 	}
 
-	m := initialModel(tf)
+	var navigationStack []NavigationEntry
+	for _, returnPath := range returnStack {
+		navigationStack = append(navigationStack, NavigationEntry{
+			FilePath:       returnPath,
+			CursorPosition: 0,
+		})
+	}
+
+	m := initialModel(todoFile, navigationStack)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		return err
@@ -74,7 +111,14 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case switchFileMsg:
+		return m.handleSwitchFile(msg)
 	case tea.KeyMsg:
+		// Clear status message on any keypress
+		if m.statusMessage != "" {
+			m.statusMessage = ""
+		}
+
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
@@ -90,6 +134,37 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateRearrange(msg)
 		}
 	}
+	return m, nil
+}
+
+// handleSwitchFile processes the result of a file load command.
+func (m model) handleSwitchFile(msg switchFileMsg) (tea.Model, tea.Cmd) {
+	if msg.err != nil {
+		m.statusMessage = fmt.Sprintf("Error: %v", msg.err)
+		// If this was a forward navigation, pop the entry we pushed
+		if msg.restoreCursor == -1 && len(m.navStack) > 0 {
+			m.navStack = m.navStack[:len(m.navStack)-1]
+		}
+		return m, nil
+	}
+
+	m.file = msg.newFile
+	if msg.restoreCursor >= 0 {
+		m.cursor = msg.restoreCursor
+	} else {
+		m.cursor = 0
+	}
+
+	// Clamp cursor to valid range
+	if m.file.TodoCount() == 0 {
+		m.cursor = 0
+	} else if m.cursor >= m.file.TodoCount() {
+		m.cursor = m.file.TodoCount() - 1
+	}
+
+	m.mode = ModeNormal
+	m.pendingDelete = false
+	m.statusMessage = ""
 	return m, nil
 }
 
@@ -119,6 +194,11 @@ func (m model) updateNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	switch msg.String() {
 	case "q", "esc":
+		if len(m.navStack) > 0 {
+			entry := m.navStack[len(m.navStack)-1]
+			m.navStack = m.navStack[:len(m.navStack)-1]
+			return m, loadFileCmd(entry.FilePath, entry.CursorPosition)
+		}
 		return m, tea.Quit
 	case "j", "down":
 		if m.cursor < m.file.TodoCount()-1 {
@@ -128,7 +208,17 @@ func (m model) updateNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.cursor > 0 {
 			m.cursor--
 		}
-	case " ", "x", "enter":
+	case " ", "enter":
+		if m.file.TodoCount() > 0 {
+			item := m.file.GetTodo(m.cursor)
+			linkedPath := item.LinkedPath()
+			if linkedPath != "" {
+				return m.navigateToLinkedFile(linkedPath)
+			}
+			m.file.ToggleTodo(m.cursor)
+			_ = m.file.Save()
+		}
+	case "x":
 		if m.file.TodoCount() > 0 {
 			m.file.ToggleTodo(m.cursor)
 			_ = m.file.Save()
@@ -152,6 +242,41 @@ func (m model) updateNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+// navigateToLinkedFile resolves a linked path and initiates navigation.
+func (m model) navigateToLinkedFile(linkedPath string) (tea.Model, tea.Cmd) {
+	resolvedPath := ResolveLinkedPath(m.file.Path, linkedPath)
+
+	// Check for self-reference
+	currentAbsolutePath, err := filepath.Abs(m.file.Path)
+	if err == nil {
+		resolvedAbsolutePath, err := filepath.Abs(resolvedPath)
+		if err == nil && currentAbsolutePath == resolvedAbsolutePath {
+			m.statusMessage = "Error: cannot link to current file"
+			return m, nil
+		}
+	}
+
+	// Check file exists
+	if _, err := os.Stat(resolvedPath); os.IsNotExist(err) {
+		m.statusMessage = fmt.Sprintf("Error: file not found: %s", resolvedPath)
+		return m, nil
+	}
+
+	// Check max stack depth
+	if len(m.navStack) >= maxNavStackDepth {
+		m.statusMessage = fmt.Sprintf("Error: maximum navigation depth (%d) reached", maxNavStackDepth)
+		return m, nil
+	}
+
+	// Push current file + cursor onto the stack
+	m.navStack = append(m.navStack, NavigationEntry{
+		FilePath:       m.file.Path,
+		CursorPosition: m.cursor,
+	})
+
+	return m, loadFileCmd(resolvedPath, -1)
 }
 
 func (m model) updateEditing(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -225,6 +350,19 @@ func (m model) View() string {
 	b.WriteString(titleStyle.Render(timestamp))
 	b.WriteString("\n")
 
+	// Breadcrumb when navigated into a linked file
+	if len(m.navStack) > 0 {
+		currentFileName := filepath.Base(m.file.Path)
+		b.WriteString(helpStyle.Render("  " + currentFileName))
+		b.WriteString("\n")
+	}
+
+	// Status message (e.g., link errors)
+	if m.statusMessage != "" {
+		b.WriteString(errorStyle.Render("  " + m.statusMessage))
+		b.WriteString("\n")
+	}
+
 	if m.file.TodoCount() == 0 && m.mode != ModeCreating {
 		b.WriteString("\n  No todos. Press 'c' to create one.\n")
 	}
@@ -277,7 +415,16 @@ func (m model) renderTodoLine(idx int, item TodoItem, isCursor bool) string {
 		if item.Checked {
 			textStyle = textStyle.Strikethrough(true)
 		}
+		if item.IsLinkedTodo() {
+			textStyle = textStyle.Underline(true)
+		}
 		return textStyle.Render(cursor) + numStr + textStyle.Render(item.Text)
+	}
+	if item.IsLinkedTodo() {
+		if item.Checked {
+			return cursor + numStr + linkStyle.Strikethrough(true).Render(item.Text)
+		}
+		return cursor + numStr + linkStyle.Render(item.Text)
 	}
 	if item.Checked {
 		return cursor + numStr + checkedStyle.Render(item.Text)
@@ -304,7 +451,11 @@ func (m model) renderHelp() string {
 		if m.pendingDelete {
 			return helpStyle.Render("  press d again to delete  |  any other key to cancel")
 		}
-		return helpStyle.Render("  j/k: navigate  space/x/enter: toggle  e: edit  c: create  r: rearrange  d: delete  esc/q: quit")
+		quitOrBackLabel := "esc/q: quit"
+		if len(m.navStack) > 0 {
+			quitOrBackLabel = "esc/q: back"
+		}
+		return helpStyle.Render("  j/k: navigate  space/enter: toggle/open  x: toggle  e: edit  c: create  r: rearrange  d: delete  " + quitOrBackLabel)
 	case ModeEditing:
 		return helpStyle.Render("  enter: save  esc: cancel")
 	case ModeCreating:
