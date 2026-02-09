@@ -44,7 +44,6 @@ type model struct {
 	mode          Mode
 	textInput     textinput.Model
 	pendingDelete bool
-	openedAt      time.Time
 	headerIcon    string
 	navStack      []NavigationEntry
 	statusMessage string
@@ -65,6 +64,12 @@ func loadFileCmd(path string, restoreCursor int) tea.Cmd {
 	}
 }
 
+// fileBasenameWithoutExtension returns the filename without its directory or extension.
+func fileBasenameWithoutExtension(filePath string) string {
+	baseName := filepath.Base(filePath)
+	return strings.TrimSuffix(baseName, filepath.Ext(baseName))
+}
+
 func initialModel(todoFile *TodoFile, navigationStack []NavigationEntry) model {
 	textInput := textinput.New()
 	textInput.CharLimit = 500
@@ -75,7 +80,6 @@ func initialModel(todoFile *TodoFile, navigationStack []NavigationEntry) model {
 		cursor:     0,
 		mode:       ModeNormal,
 		textInput:  textInput,
-		openedAt:   time.Now(),
 		headerIcon: headerIcons[rand.IntN(len(headerIcons))],
 		navStack:   navigationStack,
 	}
@@ -342,20 +346,22 @@ func (m model) updateRearrange(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// renderHeader builds the header string with repeated depth icons, file basename, and date.
+func (m model) renderHeader() string {
+	navigationDepth := len(m.navStack)
+	repeatedIcons := strings.Repeat(m.headerIcon, navigationDepth+1)
+	currentFileBasename := fileBasenameWithoutExtension(m.file.Path)
+	currentDateFormatted := time.Now().Format("Jan 2, 2006")
+	headerText := fmt.Sprintf("%s %s [%s]", repeatedIcons, currentFileBasename, currentDateFormatted)
+	return titleStyle.Render(headerText)
+}
+
 func (m model) View() string {
 	var b strings.Builder
 
 	// Header
-	timestamp := m.headerIcon + " " + m.openedAt.Format("Jan 2 @ 3:04 PM")
-	b.WriteString(titleStyle.Render(timestamp))
+	b.WriteString(m.renderHeader())
 	b.WriteString("\n")
-
-	// Breadcrumb when navigated into a linked file
-	if len(m.navStack) > 0 {
-		currentFileName := filepath.Base(m.file.Path)
-		b.WriteString(helpStyle.Render("  " + currentFileName))
-		b.WriteString("\n")
-	}
 
 	// Status message (e.g., link errors)
 	if m.statusMessage != "" {
