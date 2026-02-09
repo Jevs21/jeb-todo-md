@@ -12,7 +12,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const maxNavStackDepth = 50
+const (
+	maxNavStackDepth   = 50
+	textInputCharLimit = 500
+	textInputWidth     = 80
+)
 
 var headerIcons = []string{
 	"◆", "◇", "●", "○", "■", "□", "▲", "△",
@@ -26,14 +30,18 @@ var headerIcons = []string{
 type Mode int
 
 const (
+	// ModeNormal is the default browsing mode for navigating and triggering actions.
 	ModeNormal Mode = iota
+	// ModeEditing is active when inline-editing an existing todo's text.
 	ModeEditing
+	// ModeCreating is active when entering text for a new todo item.
 	ModeCreating
+	// ModeRearrange is active when reordering todos with j/k swaps.
 	ModeRearrange
 )
 
-// NavigationEntry stores position information for back-navigation.
-type NavigationEntry struct {
+// navigationEntry stores position information for back-navigation.
+type navigationEntry struct {
 	FilePath       string
 	CursorPosition int
 }
@@ -45,7 +53,7 @@ type model struct {
 	textInput     textinput.Model
 	pendingDelete bool
 	headerIcon    string
-	navStack      []NavigationEntry
+	navStack      []navigationEntry
 	statusMessage string
 }
 
@@ -70,10 +78,10 @@ func fileBasenameWithoutExtension(filePath string) string {
 	return strings.TrimSuffix(baseName, filepath.Ext(baseName))
 }
 
-func initialModel(todoFile *TodoFile, navigationStack []NavigationEntry) model {
+func initialModel(todoFile *TodoFile, navigationStack []navigationEntry) model {
 	textInput := textinput.New()
-	textInput.CharLimit = 500
-	textInput.Width = 80
+	textInput.CharLimit = textInputCharLimit
+	textInput.Width = textInputWidth
 
 	return model{
 		file:       todoFile,
@@ -93,9 +101,9 @@ func Run(filePath string, returnStack []string) error {
 		return fmt.Errorf("loading file: %w", err)
 	}
 
-	var navigationStack []NavigationEntry
+	var navigationStack []navigationEntry
 	for _, returnPath := range returnStack {
-		navigationStack = append(navigationStack, NavigationEntry{
+		navigationStack = append(navigationStack, navigationEntry{
 			FilePath:       returnPath,
 			CursorPosition: 0,
 		})
@@ -186,7 +194,9 @@ func (m model) updateNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.pendingDelete {
 		if msg.String() == "d" {
 			m.file.DeleteTodo(m.cursor)
-			_ = m.file.Save()
+			if err := m.file.Save(); err != nil {
+				m.statusMessage = fmt.Sprintf("Error saving: %v", err)
+			}
 			if m.cursor >= m.file.TodoCount() && m.cursor > 0 {
 				m.cursor--
 			}
@@ -220,12 +230,16 @@ func (m model) updateNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m.navigateToLinkedFile(linkedPath)
 			}
 			m.file.ToggleTodo(m.cursor)
-			_ = m.file.Save()
+			if err := m.file.Save(); err != nil {
+				m.statusMessage = fmt.Sprintf("Error saving: %v", err)
+			}
 		}
 	case "x":
 		if m.file.TodoCount() > 0 {
 			m.file.ToggleTodo(m.cursor)
-			_ = m.file.Save()
+			if err := m.file.Save(); err != nil {
+				m.statusMessage = fmt.Sprintf("Error saving: %v", err)
+			}
 		}
 	case "e":
 		if m.file.TodoCount() > 0 {
@@ -275,7 +289,7 @@ func (m model) navigateToLinkedFile(linkedPath string) (tea.Model, tea.Cmd) {
 	}
 
 	// Push current file + cursor onto the stack
-	m.navStack = append(m.navStack, NavigationEntry{
+	m.navStack = append(m.navStack, navigationEntry{
 		FilePath:       m.file.Path,
 		CursorPosition: m.cursor,
 	})
@@ -287,7 +301,9 @@ func (m model) updateEditing(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
 		m.file.SetTodoText(m.cursor, m.textInput.Value())
-		_ = m.file.Save()
+		if err := m.file.Save(); err != nil {
+			m.statusMessage = fmt.Sprintf("Error saving: %v", err)
+		}
 		m.textInput.Blur()
 		m.mode = ModeNormal
 		return m, nil
@@ -309,7 +325,9 @@ func (m model) updateCreating(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if text != "" {
 			newItem := TodoItem{Text: text, Checked: false}
 			m.file.InsertTodo(m.cursor, newItem)
-			_ = m.file.Save()
+			if err := m.file.Save(); err != nil {
+				m.statusMessage = fmt.Sprintf("Error saving: %v", err)
+			}
 			m.cursor++
 		}
 		m.textInput.Blur()
@@ -331,13 +349,17 @@ func (m model) updateRearrange(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "j", "down":
 		if m.cursor < m.file.TodoCount()-1 {
 			m.file.SwapTodos(m.cursor, m.cursor+1)
-			_ = m.file.Save()
+			if err := m.file.Save(); err != nil {
+				m.statusMessage = fmt.Sprintf("Error saving: %v", err)
+			}
 			m.cursor++
 		}
 	case "k", "up":
 		if m.cursor > 0 {
 			m.file.SwapTodos(m.cursor, m.cursor-1)
-			_ = m.file.Save()
+			if err := m.file.Save(); err != nil {
+				m.statusMessage = fmt.Sprintf("Error saving: %v", err)
+			}
 			m.cursor--
 		}
 	case "r", "esc":
