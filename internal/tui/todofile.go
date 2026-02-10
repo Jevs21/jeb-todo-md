@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const defaultFilePermission = 0644
+
 var todoRegex = regexp.MustCompile(`^(\s*- \[)([ xX])(\] )(.*)$`)
 
 // TodoItem represents a single parsed todo line.
@@ -171,8 +173,12 @@ func (tf *TodoFile) InsertTodo(afterTodoIdx int, item TodoItem) {
 func (tf *TodoFile) Save() error {
 	content := strings.Join(tf.RawLines, "\n")
 	tmpPath := tf.Path + ".tmp"
-	if err := os.WriteFile(tmpPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(tmpPath, []byte(content), defaultFilePermission); err != nil {
 		return err
 	}
-	return os.Rename(tmpPath, tf.Path)
+	if err := os.Rename(tmpPath, tf.Path); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	return nil
 }

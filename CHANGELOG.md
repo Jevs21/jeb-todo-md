@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-02-09 - Surface save errors to status bar, clean up orphaned temp files, unexport internal types, update README and docs
 - 2026-02-09 - Added dynamic header with file basename, date, and depth icons
 - 2026-02-09 - Added linked todo file navigation with `todo:` prefix syntax
 

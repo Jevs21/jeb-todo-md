@@ -52,7 +52,7 @@ brews:
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     directory: Formula
     homepage: "https://github.com/Jevs21/jeb-todo-md"
-    description: "A minimal TUI application for editing a single markdown todo file"
+    description: "A minimal TUI application for editing markdown todo files with linked file navigation"
     license: "MIT"
     install: |
       bin.install "jeb-todo-md"
