@@ -12,13 +12,16 @@ A minimal TUI application for editing markdown todo files with linked file navig
 ## Project Structure
 
 ```
-cmd/jeb-todo-md/main.go    # Thin entry point (package main)
-internal/tui/model.go       # Bubbletea model & TUI logic (package tui)
-internal/tui/styles.go      # Lipgloss style constants (package tui)
-internal/tui/todofile.go    # File I/O, parsing, data types (package tui)
-tests/todofile_test.go      # Unit tests (package tests)
-.github/workflows/test.yml  # CI: test on push
-CHANGELOG.md                # Feature history by date, grouped by release
+cmd/jeb-todo-md/main.go        # Thin entry point (package main)
+internal/tui/model.go           # Bubbletea model & TUI logic (package tui)
+internal/tui/styles.go          # Lipgloss style constants (package tui)
+internal/tui/todofile.go        # File I/O, parsing, data types (package tui)
+tests/todofile_test.go          # Unit tests (package tests)
+.github/workflows/test.yml      # CI: test on push
+.github/workflows/release.yml   # CI: GoReleaser on tag push
+.goreleaser.yml                  # GoReleaser build/release config
+Makefile                         # Build automation
+CHANGELOG.md                     # Feature history by date, grouped by release
 ```
 
 ## Architecture
@@ -49,7 +52,7 @@ Delete uses a `pendingDelete` flag in Normal mode (press d twice to confirm).
 - [ ] todo:/absolute/path/to/file.md
 ```
 
-Parsed with regex `^\s*- \[([ xX])\] (.*)$`. First line checked for `# ` prefix for title. All other lines are preserved but ignored in the TUI.
+Parsed with regex `^\s*- \[([ xX])\] (.*)$`. All non-todo lines are preserved but ignored in the TUI.
 
 Todo items with `todo:<filepath>` text are linked todos. `space`/`enter` navigates into the linked file; `x` still toggles the checkbox. Relative paths resolve from the current file's directory. Linked items render with blue underline styling.
 
@@ -75,7 +78,7 @@ Todo items with `todo:<filepath>` text are linked todos. `space`/`enter` navigat
 
 | Key | Mode | Action |
 |-----|------|--------|
-| j/k | Normal | Navigate up/down |
+| j/k/↑/↓ | Normal | Navigate up/down |
 | space/enter | Normal | Toggle checkbox, or navigate into linked todo |
 | x | Normal | Toggle checkbox (always toggles, even on linked items) |
 | e | Normal | Edit current item |
@@ -83,7 +86,7 @@ Todo items with `todo:<filepath>` text are linked todos. `space`/`enter` navigat
 | r | Normal | Enter rearrange mode |
 | d, d | Normal | Delete (press twice to confirm) |
 | q/esc | Normal | Quit (or go back if navigated into a linked file) |
-| j/k | Rearrange | Swap item with neighbor |
+| j/k/↑/↓ | Rearrange | Swap item with neighbor |
 | r/esc | Rearrange | Exit rearrange mode |
 | enter | Edit/Create | Commit change |
 | esc | Edit/Create | Cancel |
